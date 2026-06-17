@@ -3,36 +3,33 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Activity,
   AlertTriangle,
+  ArrowUpRight,
   CheckCircle2,
   FileImage,
   Loader2,
-  Moon,
   ScanLine,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
-  Stethoscope,
-  Sun,
   Upload,
   X,
   Zap,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "DermalAI — Clinical Skin Lesion Classification" },
+      { title: "DermalAI — Neural Diagnostic Interface" },
       {
         name: "description",
         content:
-          "AI-assisted triage for skin lesions. Upload a clinical image and receive instant deep learning analysis with urgency guidance.",
+          "Clinical-grade AI for skin lesion classification. Upload a dermoscopic image and receive instant triage, differentials, and recommended next steps.",
       },
-      { property: "og:title", content: "DermalAI — Skin Lesion Classification" },
+      { property: "og:title", content: "DermalAI — Neural Diagnostic Interface" },
       {
         property: "og:description",
-        content: "AI-assisted triage for skin lesions with urgency guidance.",
+        content: "Clinical-grade AI for skin lesion classification with urgency triage.",
       },
     ],
   }),
@@ -57,7 +54,7 @@ const MOCK_RESULTS: Result[] = [
     label: "Melanoma",
     confidence: 0.92,
     urgency: "critical",
-    urgencyLabel: "Critical Urgency",
+    urgencyLabel: "Critical · Refer 48h",
     summary: "Features consistent with malignant melanoma detected.",
     hallmarks: [
       "Asymmetric border with irregular pigmentation",
@@ -79,7 +76,7 @@ const MOCK_RESULTS: Result[] = [
     label: "Actinic Keratosis",
     confidence: 0.78,
     urgency: "warning",
-    urgencyLabel: "Moderate Urgency",
+    urgencyLabel: "Moderate · Follow-up 4w",
     summary: "Pre-cancerous lesion likely. Monitoring required.",
     hallmarks: [
       "Rough, scaly patch on sun-exposed skin",
@@ -98,10 +95,10 @@ const MOCK_RESULTS: Result[] = [
     ],
   },
   {
-    label: "Benign Nevus",
+    label: "Melanocytic Nevus",
     confidence: 0.95,
     urgency: "safe",
-    urgencyLabel: "Routine Monitoring",
+    urgencyLabel: "Routine · Monitor",
     summary: "No malignant features detected. Lesion appears benign.",
     hallmarks: [
       "Symmetric round shape with uniform color",
@@ -114,7 +111,7 @@ const MOCK_RESULTS: Result[] = [
       "Annual skin check recommended",
     ],
     differentials: [
-      { name: "Benign Nevus", p: 0.95 },
+      { name: "Melanocytic Nevus", p: 0.95 },
       { name: "Dermatofibroma", p: 0.03 },
       { name: "Lentigo", p: 0.02 },
     ],
@@ -122,7 +119,6 @@ const MOCK_RESULTS: Result[] = [
 ];
 
 function Index() {
-  const [dark, setDark] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -132,15 +128,11 @@ function Index() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-  }, [dark]);
-
-  useEffect(() => {
     if (!loading) return;
     setProgress(0);
     const id = window.setInterval(() => {
-      setProgress((p) => Math.min(p + Math.random() * 14, 96));
-    }, 220);
+      setProgress((p) => Math.min(p + Math.random() * 12, 96));
+    }, 200);
     return () => window.clearInterval(id);
   }, [loading]);
 
@@ -176,244 +168,326 @@ function Index() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
-      {/* Ambient backdrop */}
-      <div className="pointer-events-none absolute inset-0 bg-grid opacity-60" />
-      <div className="pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[920px] -translate-x-1/2 rounded-full bg-frost-200/40 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-40 right-0 h-[420px] w-[620px] rounded-full bg-frost-300/30 blur-3xl" />
+      {/* Ambient atmosphere */}
+      <div className="pointer-events-none absolute inset-0 bg-grid opacity-50" />
+      <div className="pointer-events-none absolute top-[-200px] left-[15%] h-[600px] w-[600px] rounded-full bg-cyan-500/10 blur-[140px] animate-float-glow" />
+      <div className="pointer-events-none absolute bottom-[-200px] right-[10%] h-[700px] w-[700px] rounded-full bg-blue-600/10 blur-[160px] animate-float-glow" style={{ animationDelay: "4s" }} />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/80" />
 
       {/* Header */}
-      <header className="relative z-20 border-b border-border/60 bg-background/70 backdrop-blur-xl">
+      <header className="relative z-20 border-b border-white/5 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-deep text-primary-foreground shadow-soft">
-              <Stethoscope className="h-5 w-5" />
-              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-success ring-2 ring-background" />
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-cyan/20 bg-cyan/10">
+              <span className="h-2 w-2 rounded-full bg-cyan animate-pulse-dot drop-shadow-cyan" />
             </div>
             <div className="flex flex-col leading-tight">
-              <span className="font-display text-lg font-semibold tracking-tight">
-                Dermal<span className="text-primary">AI</span>
+              <span className="font-display text-lg font-bold tracking-tight">
+                Dermal<span className="text-cyan/80 font-normal">AI</span>{" "}
+                <span className="text-cyan/70 font-normal">v3.2</span>
               </span>
-              <span className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                Clinical Decision Support · v3.2
+              <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                Neural Diagnostic Interface
               </span>
             </div>
           </div>
 
-          <nav className="hidden items-center gap-1 rounded-full border border-border/60 bg-card/60 p-1 text-sm text-muted-foreground backdrop-blur md:flex">
+          <nav className="hidden items-center gap-1 rounded-full glass p-1 text-sm text-slate-400 md:flex">
             <NavLink active>Scan</NavLink>
             <NavLink>Patients</NavLink>
             <NavLink>Reports</NavLink>
-            <NavLink>Guidelines</NavLink>
+            <NavLink>Models</NavLink>
           </nav>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setDark((v) => !v)}
-              className="group inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/70 px-3 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur transition-all hover:border-primary/40 hover:text-foreground"
-            >
-              <span className="relative flex h-4 w-7 items-center rounded-full bg-secondary px-0.5">
-                <span
-                  className={cn(
-                    "h-3 w-3 rounded-full bg-primary transition-transform",
-                    dark ? "translate-x-3" : "translate-x-0",
-                  )}
-                />
-              </span>
-              {dark ? (
-                <span className="flex items-center gap-1"><Moon className="h-3 w-3" />Clinic</span>
-              ) : (
-                <span className="flex items-center gap-1"><Sun className="h-3 w-3" />Daylight</span>
-              )}
-            </button>
+          <div className="flex items-center gap-2 rounded-full glass px-4 py-2">
+            <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse-dot" style={{ boxShadow: "0 0 8px rgba(74,222,128,0.8)" }} />
+            <span className="text-xs font-medium text-slate-300">Cloud Engine · Active</span>
           </div>
         </div>
       </header>
 
       <main className="relative z-10 mx-auto max-w-7xl px-6 py-10">
         {/* Hero */}
-        <div className="mb-10 flex flex-col items-start gap-4">
-          <span className="inline-flex items-center gap-2 rounded-full border border-frost-200 bg-frost-100/60 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-frost-500 backdrop-blur">
-            <Sparkles className="h-3 w-3" /> Deep learning · DermNet-v3.2
+        <div className="mb-10 flex flex-col items-start gap-4 animate-fade-up">
+          <span className="inline-flex items-center gap-2 rounded-full glass px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan/90">
+            <Sparkles className="h-3 w-3" /> Ensemble · DermNet-v3.2
           </span>
-          <h1 className="max-w-3xl font-display text-4xl font-semibold leading-[1.05] tracking-tight md:text-6xl">
-            Classify lesions with
-            <span className="relative inline-block px-2">
-              <span className="absolute inset-x-1 bottom-1 h-3 rounded bg-frost-200/80" />
-              <span className="relative text-frost-500">clinical certainty</span>
+          <h1 className="max-w-3xl font-display text-4xl font-bold leading-[1.05] tracking-tight md:text-6xl">
+            Clinical certainty,
+            <br />
+            <span className="bg-gradient-to-r from-cyan via-cyan-soft to-white bg-clip-text text-transparent">
+              rendered in milliseconds.
             </span>
-            in seconds.
           </h1>
-          <p className="max-w-2xl text-base text-muted-foreground">
-            A second pair of eyes for the frontline. Upload a smartphone or dermoscopy image and
-            receive an instant probability distribution, urgency triage, and the next clinical step.
+          <p className="max-w-2xl text-base text-slate-400">
+            A second pair of eyes for the frontline. Drop a dermoscopic image and receive an
+            instant probability distribution, urgency triage, and the next clinical step.
           </p>
         </div>
 
         {/* Bento grid */}
-        <div className="grid grid-cols-12 gap-4">
-          {/* Upload — large */}
-          <div className="col-span-12 lg:col-span-7">
-            <Bento className="h-full overflow-hidden p-0">
-              <div className="flex h-full flex-col">
-                <div className="flex items-center justify-between border-b border-border/60 px-6 py-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-frost-100 text-primary">
-                      <ScanLine className="h-3.5 w-3.5" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold">Patient Image Capture</div>
-                      <div className="text-[11px] text-muted-foreground">JPG / PNG · de-identified</div>
-                    </div>
-                  </div>
-                  {file && (
-                    <button
-                      onClick={reset}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-[11px] font-medium text-secondary-foreground transition-colors hover:bg-accent"
-                    >
-                      <X className="h-3 w-3" /> Clear
-                    </button>
-                  )}
+        <div className="grid grid-cols-12 gap-4 lg:gap-5">
+          {/* Hero analysis core */}
+          <Card className="col-span-12 lg:col-span-8 lg:row-span-2 flex flex-col p-0 animate-fade-up" style={{ animationDelay: "60ms" }}>
+            <div className="flex items-center justify-between border-b border-white/5 px-6 py-4">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-7 w-7 items-center justify-center rounded-md border border-cyan/20 bg-cyan/10 text-cyan">
+                  <ScanLine className="h-3.5 w-3.5" />
                 </div>
-
-                <div className="flex-1 p-6">
-                  {!preview ? (
-                    <label
-                      onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-                      onDragLeave={() => setDragging(false)}
-                      onDrop={onDrop}
-                      className={cn(
-                        "group relative flex min-h-[380px] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed transition-all",
-                        dragging
-                          ? "border-primary bg-frost-100/70 scale-[0.995]"
-                          : "border-frost-200 bg-gradient-to-br from-frost-50 to-card hover:border-primary/50",
-                      )}
-                    >
-                      <input
-                        ref={inputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handleFile(e.target.files?.[0])}
-                      />
-                      <div className="pointer-events-none absolute inset-0 bg-grid opacity-40" />
-                      <div className="relative flex flex-col items-center">
-                        <div className="relative mb-6">
-                          <div className="absolute inset-0 animate-pulse-ring rounded-2xl" />
-                          <div className={cn(
-                            "flex h-18 w-18 items-center justify-center rounded-2xl bg-gradient-deep text-primary-foreground shadow-lift transition-transform",
-                            dragging && "scale-110 rotate-3",
-                          )}
-                          style={{ width: 72, height: 72 }}>
-                            <Upload className="h-7 w-7" />
-                          </div>
-                        </div>
-                        <p className="font-display text-xl font-semibold tracking-tight">
-                          Drop a lesion image
-                        </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          or <span className="font-medium text-primary underline-offset-4 hover:underline">browse files</span> from your device
-                        </p>
-
-                        <div className="mt-8 flex flex-wrap items-center justify-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-                          <span className="rounded-full border border-border/60 bg-card/80 px-2.5 py-1">HIPAA aware</span>
-                          <span className="rounded-full border border-border/60 bg-card/80 px-2.5 py-1">Edge inference</span>
-                          <span className="rounded-full border border-border/60 bg-card/80 px-2.5 py-1">Audit logged</span>
-                        </div>
-                      </div>
-                    </label>
-                  ) : (
-                    <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-muted">
-                      <img src={preview} alt="Uploaded lesion" className="h-[380px] w-full object-cover" />
-                      {loading && (
-                        <>
-                          <div className="absolute inset-0 bg-gradient-to-t from-frost-900/85 via-frost-900/40 to-transparent" />
-                          {/* Scanning line */}
-                          <div
-                            className="absolute left-0 right-0 h-0.5 bg-frost-200 shadow-[0_0_24px_4px_rgba(184,212,232,0.7)] transition-all duration-300"
-                            style={{ top: `${progress}%` }}
-                          />
-                          <div className="absolute inset-x-0 bottom-0 p-6 text-frost-100">
-                            <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wider">
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              Running Deep Learning Inference
-                            </div>
-                            <div className="mb-3 font-display text-lg font-semibold">
-                              Analyzing 14 dermatoscopic features…
-                            </div>
-                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/15">
-                              <div
-                                className="h-full rounded-full bg-frost-200 transition-all duration-200"
-                                style={{ width: `${progress}%` }}
-                              />
-                            </div>
-                            <div className="mt-1.5 text-[10px] uppercase tracking-wider text-frost-200/80">
-                              {Math.round(progress)}% · ensemble of 4 CNNs
-                            </div>
-                          </div>
-                        </>
-                      )}
-                      {file && !loading && (
-                        <div className="absolute bottom-3 left-3 flex items-center gap-2 rounded-full bg-background/95 px-3 py-1.5 text-xs shadow-soft backdrop-blur">
-                          <FileImage className="h-3.5 w-3.5 text-primary" />
-                          <span className="font-medium">{file.name}</span>
-                          <span className="text-muted-foreground">· {(file.size / 1024).toFixed(0)} KB</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                <div>
+                  <div className="text-sm font-semibold text-slate-100">Patient Image Capture</div>
+                  <div className="text-[11px] text-slate-500">JPG / PNG / DICOM · de-identified</div>
                 </div>
               </div>
-            </Bento>
-          </div>
+              {file && (
+                <button
+                  onClick={reset}
+                  className="inline-flex items-center gap-1.5 rounded-full glass px-3 py-1 text-[11px] font-medium text-slate-300 transition-colors hover:text-white"
+                >
+                  <X className="h-3 w-3" /> Clear
+                </button>
+              )}
+            </div>
 
-          {/* Triage banner — wide top right */}
-          <div className="col-span-12 lg:col-span-5">
+            <div className="flex-1 p-6">
+              {!preview ? (
+                <label
+                  onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={onDrop}
+                  className={cn(
+                    "group relative flex min-h-[420px] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed transition-all",
+                    dragging
+                      ? "border-cyan bg-cyan/5 scale-[0.99]"
+                      : "border-white/10 bg-slate-900/40 hover:border-cyan/40 hover:bg-cyan/[0.03]",
+                  )}
+                >
+                  <input
+                    ref={inputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleFile(e.target.files?.[0])}
+                  />
+                  {/* corner brackets */}
+                  <div className="pointer-events-none absolute top-6 left-6 h-8 w-8 border-t-2 border-l-2 border-cyan/40" />
+                  <div className="pointer-events-none absolute top-6 right-6 h-8 w-8 border-t-2 border-r-2 border-cyan/40" />
+                  <div className="pointer-events-none absolute bottom-6 left-6 h-8 w-8 border-b-2 border-l-2 border-cyan/40" />
+                  <div className="pointer-events-none absolute bottom-6 right-6 h-8 w-8 border-b-2 border-r-2 border-cyan/40" />
+                  <div className="pointer-events-none absolute inset-0 bg-dot opacity-40" />
+
+                  <div className="relative flex flex-col items-center">
+                    <div className="relative mb-6">
+                      <div className="absolute inset-0 rounded-2xl bg-cyan/20 blur-2xl" />
+                      <div className={cn(
+                        "relative flex h-16 w-16 items-center justify-center rounded-2xl border border-cyan/30 bg-cyan/10 text-cyan transition-transform",
+                        dragging && "scale-110 rotate-3",
+                      )}>
+                        <Upload className="h-6 w-6" />
+                      </div>
+                    </div>
+                    <p className="font-display text-2xl font-bold tracking-tight text-white">
+                      Drop a lesion image
+                    </p>
+                    <p className="mt-1.5 text-sm text-slate-400">
+                      or <span className="font-medium text-cyan underline-offset-4 hover:underline">browse files</span> from your device
+                    </p>
+
+                    <div className="mt-8 flex flex-wrap items-center justify-center gap-1.5">
+                      {["HIPAA aware", "Edge inference", "Audit logged"].map((t) => (
+                        <span key={t} className="rounded-full glass px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </label>
+              ) : (
+                <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-950">
+                  <img src={preview} alt="Uploaded lesion" className="h-[420px] w-full object-cover" />
+                  {/* always-on dermascope overlay */}
+                  <div className="pointer-events-none absolute top-6 left-6 h-10 w-10 border-t-2 border-l-2 border-cyan/60" />
+                  <div className="pointer-events-none absolute top-6 right-6 h-10 w-10 border-t-2 border-r-2 border-cyan/60" />
+                  <div className="pointer-events-none absolute bottom-6 left-6 h-10 w-10 border-b-2 border-l-2 border-cyan/60" />
+                  <div className="pointer-events-none absolute bottom-6 right-6 h-10 w-10 border-b-2 border-r-2 border-cyan/60" />
+
+                  {loading && (
+                    <>
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-slate-950/20" />
+                      <div className="absolute inset-0 overflow-hidden">
+                        <div className="absolute left-0 right-0 h-px bg-cyan shadow-[0_0_24px_4px_rgba(34,211,238,0.8)] animate-scan" />
+                      </div>
+                      <div className="absolute inset-x-0 bottom-0 p-6 text-slate-100">
+                        <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Neural inference running
+                        </div>
+                        <div className="mb-3 font-display text-lg font-semibold">
+                          Analyzing 14 dermatoscopic features…
+                        </div>
+                        <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
+                          <div
+                            className="h-full rounded-full bg-cyan transition-all duration-200"
+                            style={{ width: `${progress}%`, boxShadow: "0 0 12px rgba(34,211,238,0.7)" }}
+                          />
+                        </div>
+                        <div className="mt-1.5 font-mono text-[10px] uppercase tracking-wider text-slate-400">
+                          {Math.round(progress).toString().padStart(2, "0")}% · ensemble of 4 CNNs · 142 ms/inference
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  {file && !loading && (
+                    <div className="absolute bottom-4 left-4 flex items-center gap-2 rounded-full glass-strong px-3 py-1.5 text-xs">
+                      <FileImage className="h-3.5 w-3.5 text-cyan" />
+                      <span className="font-medium text-slate-100">{file.name}</span>
+                      <span className="text-slate-500">· {(file.size / 1024).toFixed(0)} KB</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Triage banner */}
+          <div className="col-span-12 lg:col-span-4 animate-fade-up" style={{ animationDelay: "120ms" }}>
             <TriageBanner result={result} loading={loading} />
           </div>
 
-          {/* Prediction + confidence */}
-          <div className="col-span-12 md:col-span-7 lg:col-span-5">
+          {/* Confidence gauge */}
+          <div className="col-span-12 md:col-span-6 lg:col-span-4 animate-fade-up" style={{ animationDelay: "180ms" }}>
+            <ConfidenceGauge result={result} loading={loading} />
+          </div>
+
+          {/* Stats strip */}
+          <Card className="col-span-12 md:col-span-6 lg:col-span-4 animate-fade-up" style={{ animationDelay: "220ms" }}>
+            <div className="mb-4 flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Model Telemetry</h4>
+              <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-green-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse-dot" /> Live
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Stat label="AUROC" value="0.946" trend="+0.02" />
+              <Stat label="Latency" value="142ms" trend="−18ms" />
+              <Stat label="Sensitivity" value="93.4%" trend="+1.1" />
+              <Stat label="Specificity" value="91.2%" trend="+0.4" />
+            </div>
+          </Card>
+
+          {/* Prediction */}
+          <div className="col-span-12 md:col-span-6 lg:col-span-4 animate-fade-up" style={{ animationDelay: "260ms" }}>
             <PredictionCard result={result} loading={loading} />
           </div>
 
           {/* Differentials */}
-          <div className="col-span-12 md:col-span-5 lg:col-span-3">
-            <DifferentialsCard result={result} loading={loading} />
-          </div>
-
-          {/* Stats strip */}
-          <div className="col-span-12 lg:col-span-4">
-            <Bento className="h-full">
-              <div className="mb-3 flex items-center justify-between">
-                <h4 className="text-sm font-semibold">Model Telemetry</h4>
-                <span className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-success">
-                  <span className="h-1.5 w-1.5 rounded-full bg-success" /> Live
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Stat label="AUROC" value="0.946" trend="+0.02" />
-                <Stat label="Avg latency" value="1.8s" trend="−0.3s" />
-                <Stat label="Sensitivity" value="93.4%" trend="+1.1" />
-                <Stat label="Specificity" value="91.2%" trend="+0.4" />
-              </div>
-            </Bento>
-          </div>
-
-          {/* Actions */}
-          <div className="col-span-12 md:col-span-7 lg:col-span-5">
-            <ActionsCard result={result} loading={loading} />
-          </div>
+          <Card className="col-span-12 md:col-span-6 lg:col-span-4 animate-fade-up" style={{ animationDelay: "300ms" }}>
+            <div className="mb-4 flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Differentials</h4>
+              <span className="font-mono text-[10px] uppercase tracking-wider text-slate-500">Top 3</span>
+            </div>
+            {loading || !result ? (
+              <Skeleton lines={3} />
+            ) : (
+              <ul className="space-y-3.5">
+                {result.differentials.map((d, i) => (
+                  <li key={d.name}>
+                    <div className="mb-1.5 flex items-center justify-between text-xs">
+                      <span className={cn("font-medium", i === 0 ? "text-white" : "text-slate-400")}>
+                        {d.name}
+                      </span>
+                      <span className="font-mono tabular-nums text-slate-300">{(d.p * 100).toFixed(1)}%</span>
+                    </div>
+                    <div className="h-1 w-full overflow-hidden rounded-full bg-white/5">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all duration-700",
+                          i === 0 ? "bg-cyan" : "bg-white/15",
+                        )}
+                        style={{
+                          width: `${Math.round(d.p * 100)}%`,
+                          boxShadow: i === 0 ? "0 0 10px rgba(34,211,238,0.5)" : undefined,
+                        }}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
 
           {/* Hallmarks */}
-          <div className="col-span-12 md:col-span-5 lg:col-span-3">
-            <HallmarksCard result={result} loading={loading} />
-          </div>
-        </div>
+          <Card className="col-span-12 md:col-span-6 lg:col-span-4 animate-fade-up" style={{ animationDelay: "340ms" }}>
+            <h4 className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Visual Hallmarks</h4>
+            {loading || !result ? (
+              <Skeleton lines={3} />
+            ) : (
+              <ul className="space-y-3">
+                {result.hallmarks.map((h) => (
+                  <li key={h} className="flex gap-3 text-sm leading-relaxed">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan drop-shadow-cyan" />
+                    <span className="text-slate-300">{h}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
 
-        <p className="mt-12 text-center text-xs text-muted-foreground">
-          DermalAI is a clinical decision support tool. It does not replace professional medical
-          judgement. Always correlate with patient history and physical examination.
-        </p>
+          {/* Actions — wide */}
+          <Card className="col-span-12 lg:col-span-8 animate-fade-up" style={{ animationDelay: "380ms" }}>
+            <div className="mb-4 flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Recommended Actions</h4>
+              <span className="font-mono text-[10px] uppercase tracking-wider text-slate-500">Guideline-aligned</span>
+            </div>
+            {loading || !result ? (
+              <Skeleton lines={3} />
+            ) : (
+              <>
+                <ol className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  {result.actions.map((a, i) => (
+                    <li key={a} className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-cyan/30 bg-cyan/10 font-mono text-[11px] font-bold text-cyan">
+                          0{i + 1}
+                        </span>
+                        <span className="font-mono text-[9px] uppercase tracking-wider text-slate-500">
+                          Step
+                        </span>
+                      </div>
+                      <p className="text-sm leading-relaxed text-slate-200">{a}</p>
+                    </li>
+                  ))}
+                </ol>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <button className="group inline-flex items-center gap-2 rounded-full bg-cyan px-5 py-2.5 font-display text-sm font-bold tracking-wide text-slate-950 transition-all hover:bg-cyan-soft hover:scale-[1.02]" style={{ boxShadow: "0 0 30px rgba(34,211,238,0.35)" }}>
+                    Generate Report
+                    <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                  </button>
+                  <button className="inline-flex items-center gap-2 rounded-full glass px-5 py-2.5 text-sm font-semibold text-slate-200 transition-colors hover:text-white">
+                    Refer Specialist
+                  </button>
+                </div>
+              </>
+            )}
+          </Card>
+
+          {/* Audit / signature */}
+          <Card className="col-span-12 lg:col-span-4 animate-fade-up" style={{ animationDelay: "420ms" }}>
+            <h4 className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Audit Trail</h4>
+            <div className="space-y-3 font-mono text-[11px] text-slate-400">
+              <Row k="Session" v="DRM-8842-X0" />
+              <Row k="Model" v="DermNet v3.2.1" />
+              <Row k="Region" v="us-east-1 · edge" />
+              <Row k="Signed" v="✓ Ed25519" />
+              <Row k="Timestamp" v="2026-06-17T12:00:00Z" />
+            </div>
+            <div className="mt-5 rounded-xl border border-cyan/15 bg-cyan/[0.04] p-3">
+              <p className="text-[11px] leading-relaxed text-slate-400">
+                Clinical decision support. Always correlate with patient history.
+              </p>
+            </div>
+          </Card>
+        </div>
       </main>
     </div>
   );
@@ -425,7 +499,7 @@ function NavLink({ children, active }: { children: React.ReactNode; active?: boo
       href="#"
       className={cn(
         "rounded-full px-3.5 py-1.5 text-sm transition-colors",
-        active ? "bg-primary text-primary-foreground shadow-soft" : "hover:text-foreground",
+        active ? "bg-cyan/15 text-cyan" : "hover:text-white",
       )}
     >
       {children}
@@ -433,11 +507,20 @@ function NavLink({ children, active }: { children: React.ReactNode; active?: boo
   );
 }
 
-function Bento({ children, className }: { children: React.ReactNode; className?: string }) {
+function Card({
+  children,
+  className,
+  style,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
   return (
     <div
+      style={style}
       className={cn(
-        "relative rounded-2xl border border-border/70 bg-card p-5 shadow-soft transition-shadow hover:shadow-lift",
+        "relative rounded-[2rem] glass shadow-card p-6 transition-all hover:border-white/15",
         className,
       )}
     >
@@ -448,72 +531,74 @@ function Bento({ children, className }: { children: React.ReactNode; className?:
 
 function Stat({ label, value, trend }: { label: string; value: string; trend: string }) {
   return (
-    <div className="rounded-xl border border-border/60 bg-muted/40 p-3">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="mt-1 font-display text-xl font-semibold tabular-nums">{value}</div>
-      <div className="text-[10px] font-medium text-success">{trend}</div>
+    <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+      <div className="font-mono text-[9px] uppercase tracking-wider text-slate-500">{label}</div>
+      <div className="mt-1 font-display text-xl font-bold tabular-nums text-white">{value}</div>
+      <div className="font-mono text-[10px] font-medium text-green-400">{trend}</div>
+    </div>
+  );
+}
+
+function Row({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex items-center justify-between border-b border-white/5 pb-1.5 last:border-0">
+      <span className="uppercase tracking-wider text-slate-500">{k}</span>
+      <span className="text-slate-200">{v}</span>
     </div>
   );
 }
 
 const URGENCY: Record<
   Urgency,
-  {
-    label: string;
-    icon: typeof ShieldAlert;
-    bg: string;
-    fg: string;
-    ring: string;
-    bar: string;
-  }
+  { label: string; icon: typeof ShieldAlert; tint: string; ring: string; glow: string; chip: string }
 > = {
   critical: {
     label: "CRITICAL",
     icon: ShieldAlert,
-    bg: "bg-[color:var(--critical)]/10",
-    fg: "text-[color:var(--critical)]",
-    ring: "ring-[color:var(--critical)]/30",
-    bar: "bg-[color:var(--critical)]",
+    tint: "text-red-400",
+    ring: "border-red-400/30",
+    glow: "rgba(248,113,113,0.4)",
+    chip: "bg-red-400/15 text-red-300 border-red-400/30",
   },
   warning: {
     label: "MODERATE",
     icon: AlertTriangle,
-    bg: "bg-[color:var(--warning)]/12",
-    fg: "text-[color:var(--warning)]",
-    ring: "ring-[color:var(--warning)]/35",
-    bar: "bg-[color:var(--warning)]",
+    tint: "text-amber-300",
+    ring: "border-amber-400/30",
+    glow: "rgba(251,191,36,0.35)",
+    chip: "bg-amber-400/15 text-amber-200 border-amber-400/30",
   },
   safe: {
     label: "ROUTINE",
     icon: ShieldCheck,
-    bg: "bg-[color:var(--success)]/12",
-    fg: "text-[color:var(--success)]",
-    ring: "ring-[color:var(--success)]/30",
-    bar: "bg-[color:var(--success)]",
+    tint: "text-green-400",
+    ring: "border-green-400/30",
+    glow: "rgba(74,222,128,0.35)",
+    chip: "bg-green-400/15 text-green-300 border-green-400/30",
   },
 };
 
 function TriageBanner({ result, loading }: { result: Result | null; loading: boolean }) {
   if (!result) {
     return (
-      <Bento className="h-full">
+      <Card className="h-full">
         <div className="flex h-full items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-frost-100 text-primary">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-cyan/20 bg-cyan/10 text-cyan">
             <Activity className="h-5 w-5" />
           </div>
           <div className="flex-1">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            <div className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
               Triage Status
             </div>
-            <div className="font-display text-xl font-semibold">
+            <div className="font-display text-xl font-semibold text-white">
               {loading ? "Awaiting model output…" : "Awaiting image"}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-slate-400">
               Upload a lesion image to receive urgency guidance.
             </p>
           </div>
         </div>
-      </Bento>
+      </Card>
     );
   }
 
@@ -521,157 +606,127 @@ function TriageBanner({ result, loading }: { result: Result | null; loading: boo
   const Icon = u.icon;
 
   return (
-    <div className={cn("relative h-full overflow-hidden rounded-2xl ring-1 shadow-soft", u.bg, u.ring)}>
-      <div className="pointer-events-none absolute inset-0 bg-grid opacity-30" />
-      <div className="relative flex h-full items-center gap-4 p-5">
-        <div className={cn("flex h-14 w-14 items-center justify-center rounded-2xl bg-background/70 shadow-soft", u.fg)}>
+    <div
+      className={cn("relative h-full overflow-hidden rounded-[2rem] glass shadow-card border", u.ring)}
+      style={{ boxShadow: `0 0 40px -10px ${u.glow}, var(--shadow-card)` }}
+    >
+      <div className="pointer-events-none absolute -top-20 -right-20 h-48 w-48 rounded-full blur-3xl" style={{ background: u.glow }} />
+      <div className="relative flex h-full items-center gap-4 p-6">
+        <div className={cn("flex h-14 w-14 items-center justify-center rounded-2xl border bg-white/5", u.ring, u.tint)}>
           <Icon className="h-6 w-6" />
         </div>
         <div className="flex-1">
-          <div className={cn("flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em]", u.fg)}>
+          <div className={cn("flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em]", u.tint)}>
             <Zap className="h-3 w-3" /> {u.label} URGENCY
           </div>
-          <div className="font-display text-2xl font-semibold tracking-tight">
+          <div className="font-display text-2xl font-bold tracking-tight text-white">
             {result.urgencyLabel}
           </div>
-          <p className="text-xs text-muted-foreground">{result.summary}</p>
+          <p className="mt-0.5 text-xs text-slate-400">{result.summary}</p>
         </div>
       </div>
     </div>
   );
 }
 
+function ConfidenceGauge({ result, loading }: { result: Result | null; loading: boolean }) {
+  const pct = result ? Math.round(result.confidence * 100) : 0;
+  const r = 80;
+  const c = 2 * Math.PI * r;
+  const offset = c - (pct / 100) * c;
+
+  return (
+    <Card className="h-full">
+      <div className="mb-2 flex items-start justify-between">
+        <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Confidence Matrix</h3>
+        <div className="rounded-lg border border-cyan/20 bg-cyan/10 p-1.5 text-cyan">
+          <CheckCircle2 className="h-4 w-4" />
+        </div>
+      </div>
+
+      <div className="flex flex-col items-center py-2">
+        <div className="relative flex items-center justify-center">
+          <svg className="h-44 w-44 -rotate-90" viewBox="0 0 192 192">
+            <circle cx="96" cy="96" r={r} stroke="currentColor" strokeWidth="6" fill="transparent" className="text-white/5" />
+            <circle
+              cx="96"
+              cy="96"
+              r={r}
+              stroke="currentColor"
+              strokeWidth="8"
+              strokeLinecap="round"
+              fill="transparent"
+              strokeDasharray={c}
+              strokeDashoffset={loading || !result ? c : offset}
+              className="text-cyan drop-shadow-cyan transition-all duration-1000 ease-out"
+              style={{ filter: "drop-shadow(0 0 10px rgba(34,211,238,0.5))" }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="font-display text-5xl font-bold tabular-nums text-white">
+              {loading ? "—" : pct}
+              <span className="text-xl text-slate-400">%</span>
+            </span>
+            <span className="mt-1 font-mono text-[10px] font-bold uppercase tracking-widest text-cyan/70">
+              Reliability
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-2 space-y-2">
+        <div className="flex justify-between text-xs">
+          <span className="text-slate-400">Inference latency</span>
+          <span className="font-mono text-white">142ms</span>
+        </div>
+        <div className="h-1 w-full overflow-hidden rounded-full bg-white/5">
+          <div className="h-full w-[72%] bg-cyan" style={{ boxShadow: "0 0 8px rgba(34,211,238,0.6)" }} />
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function PredictionCard({ result, loading }: { result: Result | null; loading: boolean }) {
   return (
-    <Bento className="h-full">
-      <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+    <Card className="h-full relative overflow-hidden">
+      <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-cyan/10 blur-3xl" />
+      <div className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
         Primary Classification
       </div>
       {loading || !result ? (
-        <Skeleton lines={2} />
+        <div className="mt-3"><Skeleton lines={2} /></div>
       ) : (
         <>
-          <h3 className="font-display text-3xl font-semibold tracking-tight">{result.label}</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <h3 className="mt-1 font-display text-3xl font-bold tracking-tight text-white">
+            {result.label}
+          </h3>
+          <p className="mt-1 text-xs text-slate-400">
             Highest-probability class across the ensemble.
           </p>
-          <div className="mt-5">
-            <div className="mb-2 flex items-baseline justify-between">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Confidence
-              </span>
-              <span className="font-display text-3xl font-semibold tabular-nums">
-                {Math.round(result.confidence * 100)}%
-              </span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className={cn("h-full rounded-full transition-all duration-700", URGENCY[result.urgency].bar)}
-                style={{ width: `${Math.round(result.confidence * 100)}%` }}
-              />
-            </div>
-            <div className="mt-1.5 flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
-              <span>Low</span><span>Moderate</span><span>High</span>
-            </div>
+          <div className="mt-5 flex flex-wrap gap-1.5">
+            <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider", URGENCY[result.urgency].chip)}>
+              {URGENCY[result.urgency].label}
+            </span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Dermoscopic
+            </span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              ICD · L82
+            </span>
           </div>
         </>
       )}
-    </Bento>
-  );
-}
-
-function DifferentialsCard({ result, loading }: { result: Result | null; loading: boolean }) {
-  return (
-    <Bento className="h-full">
-      <div className="mb-3 flex items-center justify-between">
-        <h4 className="text-sm font-semibold">Differentials</h4>
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Top 3</span>
-      </div>
-      {loading || !result ? (
-        <Skeleton lines={3} />
-      ) : (
-        <ul className="space-y-3">
-          {result.differentials.map((d, i) => (
-            <li key={d.name}>
-              <div className="mb-1 flex items-center justify-between text-xs">
-                <span className={cn("font-medium", i === 0 && "text-foreground", i > 0 && "text-muted-foreground")}>
-                  {d.name}
-                </span>
-                <span className="tabular-nums text-muted-foreground">{Math.round(d.p * 100)}%</span>
-              </div>
-              <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className={cn("h-full rounded-full", i === 0 ? URGENCY[result.urgency].bar : "bg-frost-300/60")}
-                  style={{ width: `${Math.round(d.p * 100)}%` }}
-                />
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Bento>
-  );
-}
-
-function HallmarksCard({ result, loading }: { result: Result | null; loading: boolean }) {
-  return (
-    <Bento className="h-full">
-      <h4 className="mb-3 text-sm font-semibold">Hallmark Symptoms</h4>
-      {loading || !result ? (
-        <Skeleton lines={3} />
-      ) : (
-        <ul className="space-y-2.5">
-          {result.hallmarks.map((h) => (
-            <li key={h} className="flex gap-2.5 text-xs leading-relaxed">
-              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-              <span className="text-foreground/85">{h}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Bento>
-  );
-}
-
-function ActionsCard({ result, loading }: { result: Result | null; loading: boolean }) {
-  return (
-    <Bento className="h-full">
-      <div className="mb-3 flex items-center justify-between">
-        <h4 className="text-sm font-semibold">Recommended Actions</h4>
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-          Guideline-aligned
-        </span>
-      </div>
-      {loading || !result ? (
-        <Skeleton lines={3} />
-      ) : (
-        <>
-          <ol className="space-y-2.5">
-            {result.actions.map((a, i) => (
-              <li key={a} className="flex gap-3 text-sm">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-deep text-[11px] font-semibold text-primary-foreground">
-                  {i + 1}
-                </span>
-                <span className="pt-0.5 text-foreground/85">{a}</span>
-              </li>
-            ))}
-          </ol>
-          <div className="mt-5 flex gap-2">
-            <Button className="flex-1">Generate Report</Button>
-            <Button variant="outline" className="flex-1">Refer Specialist</Button>
-          </div>
-        </>
-      )}
-    </Bento>
+    </Card>
   );
 }
 
 function Skeleton({ lines }: { lines: number }) {
   return (
     <div className="space-y-2.5">
-      <div className="h-7 w-3/5 animate-shimmer rounded-md bg-muted" />
+      <div className="h-7 w-3/5 animate-shimmer rounded-md bg-white/5" />
       {[...Array(lines)].map((_, i) => (
-        <div key={i} className="h-3 w-full animate-shimmer rounded bg-muted" />
+        <div key={i} className="h-3 w-full animate-shimmer rounded bg-white/5" />
       ))}
     </div>
   );
