@@ -479,7 +479,7 @@ function Index() {
               <Row k="Model" v="DermNet v3.2.1" />
               <Row k="Region" v="us-east-1 · edge" />
               <Row k="Signed" v="✓ Ed25519" />
-              <Row k="Timestamp" v={new Date().toISOString().slice(0, 19) + "Z"} />
+              <Row k="Timestamp" v="2026-06-17T12:00:00Z" />
             </div>
             <div className="mt-5 rounded-xl border border-cyan/15 bg-cyan/[0.04] p-3">
               <p className="text-[11px] leading-relaxed text-slate-400">
