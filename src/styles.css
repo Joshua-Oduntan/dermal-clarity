@@ -90,6 +90,103 @@
   }
 }
 
+/* ============ LIGHT MODE ============ */
+.light {
+  --background: #eef4fb;
+  --foreground: #0b1c2e;
+  --card: rgba(255, 255, 255, 0.55);
+  --card-foreground: #0b1c2e;
+  --popover: #ffffff;
+  --popover-foreground: #0b1c2e;
+  --primary: #0891b2;
+  --primary-foreground: #ffffff;
+  --secondary: rgba(15, 23, 42, 0.04);
+  --secondary-foreground: #0b1c2e;
+  --muted: rgba(15, 23, 42, 0.04);
+  --muted-foreground: #475569;
+  --accent: rgba(8, 145, 178, 0.1);
+  --accent-foreground: #0e7490;
+  --border: rgba(15, 23, 42, 0.08);
+  --input: rgba(15, 23, 42, 0.08);
+  --ring: #0891b2;
+  --success: #16a34a;
+  --warning: #d97706;
+  --critical: #dc2626;
+  --shadow-glow: 0 0 30px rgba(8, 145, 178, 0.25);
+  --shadow-card: 0 24px 60px -24px rgba(8, 47, 73, 0.18), 0 0 0 1px rgba(15, 23, 42, 0.04) inset;
+}
+
+/* Light-mode overrides for hardcoded slate/cyan/white utility classes used across the UI */
+.light .glass {
+  background-color: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(40px) saturate(160%);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+.light .glass-strong {
+  background-color: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(48px) saturate(180%);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+}
+.light .bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(8, 47, 73, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(8, 47, 73, 0.06) 1px, transparent 1px);
+}
+.light .bg-dot {
+  background-image: radial-gradient(rgba(8, 47, 73, 0.14) 1px, transparent 1px);
+}
+
+.light .text-white { color: #0b1c2e !important; }
+.light .text-slate-100 { color: #0b1c2e !important; }
+.light .text-slate-200 { color: #1e293b !important; }
+.light .text-slate-300 { color: #334155 !important; }
+.light .text-slate-400 { color: #64748b !important; }
+.light .text-slate-500 { color: #94a3b8 !important; }
+.light .text-cyan { color: #0e7490 !important; }
+.light .text-cyan-soft { color: #0891b2 !important; }
+.light .text-cyan\/70 { color: rgba(14, 116, 144, 0.85) !important; }
+.light .text-cyan\/80 { color: rgba(14, 116, 144, 0.9) !important; }
+.light .text-cyan\/90 { color: rgba(14, 116, 144, 0.95) !important; }
+
+.light .bg-cyan { background-color: #0891b2 !important; }
+.light .bg-cyan\/5 { background-color: rgba(8, 145, 178, 0.06) !important; }
+.light .bg-cyan\/10 { background-color: rgba(8, 145, 178, 0.1) !important; }
+.light .bg-cyan\/15 { background-color: rgba(8, 145, 178, 0.14) !important; }
+.light .bg-cyan\/20 { background-color: rgba(8, 145, 178, 0.18) !important; }
+.light .border-cyan\/15 { border-color: rgba(8, 145, 178, 0.2) !important; }
+.light .border-cyan\/20 { border-color: rgba(8, 145, 178, 0.25) !important; }
+.light .border-cyan\/30 { border-color: rgba(8, 145, 178, 0.35) !important; }
+.light .border-cyan\/40 { border-color: rgba(8, 145, 178, 0.45) !important; }
+.light .border-cyan\/60 { border-color: rgba(8, 145, 178, 0.6) !important; }
+
+.light .bg-white\/5 { background-color: rgba(15, 23, 42, 0.04) !important; }
+.light .bg-white\/10 { background-color: rgba(15, 23, 42, 0.06) !important; }
+.light .bg-white\/15 { background-color: rgba(15, 23, 42, 0.1) !important; }
+.light .bg-white\/20 { background-color: rgba(15, 23, 42, 0.12) !important; }
+.light .bg-white\/\[0\.02\] { background-color: rgba(15, 23, 42, 0.025) !important; }
+.light .bg-white\/\[0\.03\] { background-color: rgba(15, 23, 42, 0.035) !important; }
+.light .bg-white\/\[0\.04\] { background-color: rgba(15, 23, 42, 0.04) !important; }
+.light .bg-white\/\[0\.05\] { background-color: rgba(15, 23, 42, 0.05) !important; }
+
+.light .border-white\/5 { border-color: rgba(15, 23, 42, 0.05) !important; }
+.light .border-white\/10 { border-color: rgba(15, 23, 42, 0.08) !important; }
+.light .border-white\/15 { border-color: rgba(15, 23, 42, 0.12) !important; }
+.light .border-white\/20 { border-color: rgba(15, 23, 42, 0.16) !important; }
+
+.light .bg-slate-900\/40 { background-color: rgba(241, 245, 249, 0.6) !important; }
+.light .bg-slate-950 { background-color: #e2e8f0 !important; }
+
+/* Triage / alert chips remap to richer light-mode tones */
+.light .text-red-300, .light .text-red-400 { color: #b91c1c !important; }
+.light .bg-red-400\/15 { background-color: rgba(220, 38, 38, 0.1) !important; }
+.light .border-red-400\/30 { border-color: rgba(220, 38, 38, 0.3) !important; }
+.light .text-amber-200, .light .text-amber-300 { color: #b45309 !important; }
+.light .bg-amber-400\/15 { background-color: rgba(217, 119, 6, 0.12) !important; }
+.light .border-amber-400\/30 { border-color: rgba(217, 119, 6, 0.3) !important; }
+.light .text-green-300, .light .text-green-400 { color: #15803d !important; }
+.light .bg-green-400\/15 { background-color: rgba(22, 163, 74, 0.12) !important; }
+.light .border-green-400\/30 { border-color: rgba(22, 163, 74, 0.3) !important; }
+
 @utility glass {
   background-color: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(40px) saturate(140%);

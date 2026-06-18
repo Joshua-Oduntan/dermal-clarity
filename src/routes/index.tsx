@@ -7,10 +7,12 @@ import {
   CheckCircle2,
   FileImage,
   Loader2,
+  Moon,
   ScanLine,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
+  Sun,
   Upload,
   X,
   Zap,
@@ -119,6 +121,7 @@ const MOCK_RESULTS: Result[] = [
 ];
 
 function Index() {
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -126,6 +129,21 @@ function Index() {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<Result | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const saved = (typeof window !== "undefined" && localStorage.getItem("dermalai-theme")) as
+      | "dark"
+      | "light"
+      | null;
+    if (saved) setTheme(saved);
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("light", theme === "light");
+    root.classList.toggle("dark", theme === "dark");
+    localStorage.setItem("dermalai-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     if (!loading) return;
@@ -199,9 +217,28 @@ function Index() {
             <NavLink>Models</NavLink>
           </nav>
 
-          <div className="flex items-center gap-2 rounded-full glass px-4 py-2">
-            <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse-dot" style={{ boxShadow: "0 0 8px rgba(74,222,128,0.8)" }} />
-            <span className="text-xs font-medium text-slate-300">Cloud Engine · Active</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+              aria-label="Toggle theme"
+              className="group relative flex h-9 w-16 items-center rounded-full glass p-1 transition-colors hover:border-cyan/30"
+            >
+              <span
+                className={cn(
+                  "absolute flex h-7 w-7 items-center justify-center rounded-full bg-cyan text-slate-950 transition-transform duration-300 ease-out",
+                  theme === "dark" ? "translate-x-0" : "translate-x-7",
+                )}
+                style={{ boxShadow: "0 0 12px rgba(34,211,238,0.5)" }}
+              >
+                {theme === "dark" ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
+              </span>
+              <Sun className={cn("ml-1 h-3.5 w-3.5 transition-opacity", theme === "dark" ? "opacity-30 text-slate-400" : "opacity-0")} />
+              <Moon className={cn("ml-auto mr-1 h-3.5 w-3.5 transition-opacity", theme === "light" ? "opacity-30 text-slate-400" : "opacity-0")} />
+            </button>
+            <div className="hidden md:flex items-center gap-2 rounded-full glass px-4 py-2">
+              <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse-dot" style={{ boxShadow: "0 0 8px rgba(74,222,128,0.8)" }} />
+              <span className="text-xs font-medium text-slate-300">Cloud Engine · Active</span>
+            </div>
           </div>
         </div>
       </header>
@@ -215,7 +252,7 @@ function Index() {
           <h1 className="max-w-3xl font-display text-4xl font-bold leading-[1.05] tracking-tight md:text-6xl">
             Clinical certainty,
             <br />
-            <span className="bg-gradient-to-r from-cyan via-cyan-soft to-white bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-cyan via-cyan-soft to-foreground bg-clip-text text-transparent">
               rendered in milliseconds.
             </span>
           </h1>
