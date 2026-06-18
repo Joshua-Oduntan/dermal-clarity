@@ -359,8 +359,37 @@ function Index() {
               )}
             </div>
 
+            {!preview && (
+              <div className="flex items-center gap-1 border-b border-white/5 px-6 py-3">
+                <div className="inline-flex items-center gap-1 rounded-full glass p-1 text-xs">
+                  <button
+                    onClick={() => setMode("upload")}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition-colors",
+                      mode === "upload"
+                        ? "bg-cyan text-slate-950"
+                        : "text-slate-400 hover:text-white",
+                    )}
+                  >
+                    <Upload className="h-3.5 w-3.5" /> Upload
+                  </button>
+                  <button
+                    onClick={() => setMode("camera")}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition-colors",
+                      mode === "camera"
+                        ? "bg-cyan text-slate-950"
+                        : "text-slate-400 hover:text-white",
+                    )}
+                  >
+                    <Camera className="h-3.5 w-3.5" /> Webcam
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex-1 p-6">
-              {!preview ? (
+              {!preview && mode === "upload" && (
                 <label
                   onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
                   onDragLeave={() => setDragging(false)}
