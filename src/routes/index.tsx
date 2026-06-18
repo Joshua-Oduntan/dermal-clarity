@@ -949,6 +949,127 @@ function PredictionCard({ result, loading }: { result: Result | null; loading: b
   );
 }
 
+function FindDermatologist() {
+  const search = useServerFn(findDermatologists);
+  const [address, setAddress] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [results, setResults] = useState<Dermatologist[] | null>(null);
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const value = address.trim();
+    if (!value || loading) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await search({ data: { address: value } });
+      setResults(res.results);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Search failed");
+      setResults(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card className="relative overflow-hidden">
+      <div className="pointer-events-none absolute -left-20 -top-20 h-56 w-56 rounded-full bg-cyan/10 blur-3xl" />
+      <div className="relative">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-cyan/70">
+              Specialist Network
+            </div>
+            <h3 className="mt-1 font-display text-2xl font-bold tracking-tight text-white">
+              Find a Dermatologist Near You
+            </h3>
+            <p className="mt-1 max-w-xl text-sm text-slate-400">
+              Enter your address or city to surface board-reviewed dermatology clinics in your area.
+            </p>
+          </div>
+          <div className="rounded-xl border border-cyan/20 bg-cyan/10 p-2 text-cyan">
+            <MapPin className="h-5 w-5" />
+          </div>
+        </div>
+
+        <form onSubmit={onSubmit} className="mt-5 flex flex-col gap-3 sm:flex-row">
+          <div className="relative flex-1">
+            <MapPin className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="e.g. 350 5th Ave, New York, NY"
+              maxLength={200}
+              className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 outline-none transition-colors focus:border-cyan/40 focus:bg-white/10"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading || !address.trim()}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan px-6 py-3 font-display text-sm font-bold tracking-wide text-slate-950 transition-all hover:scale-[1.02] hover:bg-cyan-soft disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+            style={{ boxShadow: "0 0 30px rgba(34,211,238,0.35)" }}
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="h-4 w-4" />
+            )}
+            {loading ? "Searching" : "Search"}
+          </button>
+        </form>
+
+        {error && (
+          <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-300">
+            {error}
+          </div>
+        )}
+
+        {results && results.length === 0 && !loading && (
+          <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-slate-400">
+            No dermatologists found near that location. Try a broader area.
+          </div>
+        )}
+
+        {results && results.length > 0 && (
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            {results.map((d) => (
+              <a
+                key={d.id}
+                href={d.mapsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="group rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition-all hover:border-cyan/30 hover:bg-white/[0.06]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <h4 className="truncate font-display text-base font-semibold text-white">
+                      {d.name}
+                    </h4>
+                    <p className="mt-1 line-clamp-2 text-xs text-slate-400">{d.address}</p>
+                  </div>
+                  <ArrowUpRight className="h-4 w-4 shrink-0 text-slate-500 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-cyan" />
+                </div>
+                {typeof d.rating === "number" && (
+                  <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-300">
+                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                    <span className="font-mono font-semibold tabular-nums">{d.rating.toFixed(1)}</span>
+                    {d.userRatingCount ? (
+                      <span className="text-slate-500">({d.userRatingCount.toLocaleString()})</span>
+                    ) : null}
+                  </div>
+                )}
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 function Skeleton({ lines }: { lines: number }) {
   return (
     <div className="space-y-2.5">
