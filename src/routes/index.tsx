@@ -974,7 +974,7 @@ function FindDermatologist() {
   };
 
   return (
-    <Card className="relative overflow-hidden">
+    <Card className="relative overflow-hidden h-full">
       <div className="pointer-events-none absolute -left-20 -top-20 h-56 w-56 rounded-full bg-cyan/10 blur-3xl" />
       <div className="relative">
         <div className="flex flex-wrap items-start justify-between gap-4">
