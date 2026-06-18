@@ -712,7 +712,7 @@ function Index() {
           </Card>
 
           {/* Find a Dermatologist */}
-          <div className="col-span-12 animate-fade-up" style={{ animationDelay: "480ms" }}>
+          <div className="col-span-12 lg:col-span-8 animate-fade-up" style={{ animationDelay: "480ms" }}>
             <FindDermatologist />
           </div>
         </div>
