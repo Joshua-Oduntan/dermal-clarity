@@ -121,6 +121,7 @@ const MOCK_RESULTS: Result[] = [
 ];
 
 function Index() {
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -128,6 +129,21 @@ function Index() {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<Result | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const saved = (typeof window !== "undefined" && localStorage.getItem("dermalai-theme")) as
+      | "dark"
+      | "light"
+      | null;
+    if (saved) setTheme(saved);
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("light", theme === "light");
+    root.classList.toggle("dark", theme === "dark");
+    localStorage.setItem("dermalai-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     if (!loading) return;
