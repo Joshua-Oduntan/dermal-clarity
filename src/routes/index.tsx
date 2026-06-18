@@ -4,10 +4,13 @@ import {
   Activity,
   AlertTriangle,
   ArrowUpRight,
+  Camera,
+  CameraOff,
   CheckCircle2,
   FileImage,
   Loader2,
   Moon,
+  RefreshCw,
   ScanLine,
   ShieldAlert,
   ShieldCheck,
@@ -122,13 +125,18 @@ const MOCK_RESULTS: Result[] = [
 
 function Index() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [mode, setMode] = useState<"upload" | "camera">("upload");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<Result | null>(null);
+  const [cameraOn, setCameraOn] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     const saved = (typeof window !== "undefined" && localStorage.getItem("dermalai-theme")) as
@@ -154,6 +162,53 @@ function Index() {
     return () => window.clearInterval(id);
   }, [loading]);
 
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setCameraOn(false);
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    setCameraError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+      }
+      setCameraOn(true);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Camera unavailable";
+      setCameraError(msg);
+      setCameraOn(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (mode === "camera" && !cameraOn && !preview) {
+      void startCamera();
+    }
+    if (mode === "upload") {
+      stopCamera();
+    }
+  }, [mode, cameraOn, preview, startCamera, stopCamera]);
+
   const handleFile = useCallback((f: File | undefined | null) => {
     if (!f) return;
     setFile(f);
@@ -169,6 +224,23 @@ function Index() {
     }, 2400);
   }, []);
 
+  const snapPhoto = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const f = new File([blob], `capture-${Date.now()}.jpg`, { type: "image/jpeg" });
+      stopCamera();
+      handleFile(f);
+    }, "image/jpeg", 0.92);
+  }, [handleFile, stopCamera]);
+
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
@@ -182,6 +254,7 @@ function Index() {
     setLoading(false);
     setProgress(0);
     if (inputRef.current) inputRef.current.value = "";
+    if (mode === "camera") void startCamera();
   };
 
   return (
@@ -286,8 +359,37 @@ function Index() {
               )}
             </div>
 
+            {!preview && (
+              <div className="flex items-center gap-1 border-b border-white/5 px-6 py-3">
+                <div className="inline-flex items-center gap-1 rounded-full glass p-1 text-xs">
+                  <button
+                    onClick={() => setMode("upload")}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition-colors",
+                      mode === "upload"
+                        ? "bg-cyan text-slate-950"
+                        : "text-slate-400 hover:text-white",
+                    )}
+                  >
+                    <Upload className="h-3.5 w-3.5" /> Upload
+                  </button>
+                  <button
+                    onClick={() => setMode("camera")}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition-colors",
+                      mode === "camera"
+                        ? "bg-cyan text-slate-950"
+                        : "text-slate-400 hover:text-white",
+                    )}
+                  >
+                    <Camera className="h-3.5 w-3.5" /> Webcam
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex-1 p-6">
-              {!preview ? (
+              {!preview && mode === "upload" && (
                 <label
                   onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
                   onDragLeave={() => setDragging(false)}
@@ -339,7 +441,86 @@ function Index() {
                     </div>
                   </div>
                 </label>
-              ) : (
+              )}
+
+              {!preview && mode === "camera" && (
+                <div className="relative flex min-h-[420px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-950">
+                  <video
+                    ref={videoRef}
+                    playsInline
+                    muted
+                    autoPlay
+                    className="h-[420px] w-full object-cover"
+                  />
+                  {/* corner brackets */}
+                  <div className="pointer-events-none absolute top-6 left-6 h-10 w-10 border-t-2 border-l-2 border-cyan/60" />
+                  <div className="pointer-events-none absolute top-6 right-6 h-10 w-10 border-t-2 border-r-2 border-cyan/60" />
+                  <div className="pointer-events-none absolute bottom-6 left-6 h-10 w-10 border-b-2 border-l-2 border-cyan/60" />
+                  <div className="pointer-events-none absolute bottom-6 right-6 h-10 w-10 border-b-2 border-r-2 border-cyan/60" />
+
+                  {/* focus reticle */}
+                  {cameraOn && (
+                    <div className="pointer-events-none absolute left-1/2 top-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan/40 shadow-[inset_0_0_40px_rgba(34,211,238,0.15)]" />
+                  )}
+
+                  {/* status pill */}
+                  <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full glass-strong px-3 py-1.5 text-[11px]">
+                    <span
+                      className={cn(
+                        "h-2 w-2 rounded-full",
+                        cameraOn ? "bg-green-400 animate-pulse-dot" : "bg-slate-500",
+                      )}
+                      style={cameraOn ? { boxShadow: "0 0 8px rgba(74,222,128,0.8)" } : undefined}
+                    />
+                    <span className="font-medium text-slate-100">
+                      {cameraOn ? "Live feed" : "Camera idle"}
+                    </span>
+                  </div>
+
+                  {!cameraOn && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 p-6 text-center">
+                      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan/30 bg-cyan/10 text-cyan">
+                        <CameraOff className="h-6 w-6" />
+                      </div>
+                      <p className="font-display text-lg font-semibold text-white">
+                        {cameraError ? "Camera blocked" : "Camera ready"}
+                      </p>
+                      <p className="mt-1 max-w-xs text-sm text-slate-400">
+                        {cameraError ?? "Grant permission to start streaming."}
+                      </p>
+                      <button
+                        onClick={() => void startCamera()}
+                        className="mt-4 inline-flex items-center gap-2 rounded-full bg-cyan px-4 py-2 text-xs font-semibold text-slate-950 transition-transform hover:scale-[1.02]"
+                      >
+                        <Camera className="h-3.5 w-3.5" /> Start camera
+                      </button>
+                    </div>
+                  )}
+
+                  {/* capture controls */}
+                  <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-3 bg-gradient-to-t from-slate-950/90 to-transparent p-5">
+                    <button
+                      onClick={snapPhoto}
+                      disabled={!cameraOn}
+                      className="group relative flex h-14 w-14 items-center justify-center rounded-full bg-cyan text-slate-950 shadow-[0_0_24px_rgba(34,211,238,0.6)] transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+                      aria-label="Capture photo"
+                    >
+                      <span className="absolute inset-1 rounded-full border-2 border-slate-950" />
+                      <Camera className="relative h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => void startCamera()}
+                      disabled={!cameraOn}
+                      className="inline-flex h-10 items-center gap-1.5 rounded-full glass-strong px-3 text-[11px] font-medium text-slate-200 transition-colors hover:text-white disabled:opacity-40"
+                      aria-label="Restart camera"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" /> Reset
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {preview && (
                 <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-950">
                   <img src={preview} alt="Uploaded lesion" className="h-[420px] w-full object-cover" />
                   {/* always-on dermascope overlay */}
