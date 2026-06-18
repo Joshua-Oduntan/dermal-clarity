@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Activity,
@@ -9,18 +10,22 @@ import {
   CheckCircle2,
   FileImage,
   Loader2,
+  MapPin,
   Moon,
   RefreshCw,
   ScanLine,
+  Search,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
+  Star,
   Sun,
   Upload,
   X,
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { findDermatologists, type Dermatologist } from "@/lib/dermatologists.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
