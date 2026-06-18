@@ -252,7 +252,7 @@ function Index() {
           <h1 className="max-w-3xl font-display text-4xl font-bold leading-[1.05] tracking-tight md:text-6xl">
             Clinical certainty,
             <br />
-            <span className="bg-gradient-to-r from-cyan via-cyan-soft to-white bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-cyan via-cyan-soft to-foreground bg-clip-text text-transparent">
               rendered in milliseconds.
             </span>
           </h1>
