@@ -125,13 +125,18 @@ const MOCK_RESULTS: Result[] = [
 
 function Index() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [mode, setMode] = useState<"upload" | "camera">("upload");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<Result | null>(null);
+  const [cameraOn, setCameraOn] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     const saved = (typeof window !== "undefined" && localStorage.getItem("dermalai-theme")) as
@@ -157,6 +162,53 @@ function Index() {
     return () => window.clearInterval(id);
   }, [loading]);
 
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setCameraOn(false);
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    setCameraError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+      }
+      setCameraOn(true);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Camera unavailable";
+      setCameraError(msg);
+      setCameraOn(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (mode === "camera" && !cameraOn && !preview) {
+      void startCamera();
+    }
+    if (mode === "upload") {
+      stopCamera();
+    }
+  }, [mode, cameraOn, preview, startCamera, stopCamera]);
+
   const handleFile = useCallback((f: File | undefined | null) => {
     if (!f) return;
     setFile(f);
@@ -172,6 +224,23 @@ function Index() {
     }, 2400);
   }, []);
 
+  const snapPhoto = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const f = new File([blob], `capture-${Date.now()}.jpg`, { type: "image/jpeg" });
+      stopCamera();
+      handleFile(f);
+    }, "image/jpeg", 0.92);
+  }, [handleFile, stopCamera]);
+
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
@@ -185,6 +254,7 @@ function Index() {
     setLoading(false);
     setProgress(0);
     if (inputRef.current) inputRef.current.value = "";
+    if (mode === "camera") void startCamera();
   };
 
   return (
