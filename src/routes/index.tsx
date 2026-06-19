@@ -1033,9 +1033,29 @@ function FindDermatologist() {
           </div>
         )}
 
+        <div className="mt-4 flex flex-wrap gap-2">
+          {[
+            "New York, NY",
+            "Los Angeles, CA",
+          ].map((example) => (
+            <button
+              key={example}
+              type="button"
+              onClick={() => {
+                setAddress(example);
+                setResults(null);
+                setError(null);
+              }}
+              className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-slate-400 transition-all hover:border-cyan/30 hover:text-cyan"
+            >
+              {example}
+            </button>
+          ))}
+        </div>
+
         {results && results.length > 0 && (
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            {results.map((d) => (
+            {results.slice(0, 2).map((d) => (
               <a
                 key={d.id}
                 href={d.mapsUrl}
