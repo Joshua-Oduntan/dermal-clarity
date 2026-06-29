@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Activity,
@@ -10,23 +9,19 @@ import {
   CheckCircle2,
   FileImage,
   Loader2,
-  MapPin,
   Moon,
   RefreshCw,
   ScanLine,
-  Search,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
-  Star,
   Sun,
   Upload,
   X,
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { findDermatologists, type Dermatologist } from "@/lib/dermatologists.functions";
-import { predictImage, type PredictionApiResponse } from "@/lib/api";
+import { compareModels, predictImage, type CompareResponse, type ModelName, type PredictionApiResponse } from "@/lib/api";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -58,10 +53,18 @@ type Result = {
   hallmarks: string[];
   actions: string[];
   differentials: { name: string; p: number }[];
+  modelUsed: string;
+  riskLevel: string;
+  inferenceTimeMs: number;
+  createdAt: string | null;
+  imageResolution?: string;
+  analysisSummary: string;
+  analysisPoints: string[];
 };
 
 function mapPredictionToResult(payload: PredictionApiResponse): Result {
-  const normalizedRisk = payload.risk_level?.toLowerCase() ?? "low";
+  const normalizedRiskLevel = payload.risk_level?.trim().replace(/_/g, " ") || "Low";
+  const normalizedRisk = normalizedRiskLevel.toLowerCase();
   const urgency: Urgency = normalizedRisk.includes("high") || normalizedRisk.includes("critical")
     ? "critical"
     : normalizedRisk.includes("moderate") || normalizedRisk.includes("warning")
@@ -79,17 +82,26 @@ function mapPredictionToResult(payload: PredictionApiResponse): Result {
     .slice(0, 3)
     .map((entry) => ({ name: entry.class_name, p: entry.confidence }));
 
-  const fallbackActions = [
-    payload.recommendation || "Correlate the finding with the patient history and physical exam.",
-    "Document the lesion image and monitor for change over time.",
-    "Escalate to specialist review if the appearance evolves.",
-  ];
-
   const normalizedLabel = payload.predicted_class?.trim() || "Unknown lesion";
   const hallmarks = [
-    `The image indicates a ${normalizedLabel.toLowerCase()}-compatible pattern.`,
-    `The confidence estimate is ${Math.round(payload.confidence * 100)}%.`,
-    "The model output should be used as a decision support signal alongside clinical assessment.",
+    `Predicted label: ${normalizedLabel}.`,
+    `Confidence: ${Math.round(payload.confidence * 100)}%.`,
+    `Ensemble model output by ${payload.model_used}.`,
+  ];
+
+  const primaryRecommendation = payload.recommendation || `Correlate the lesion appearance with clinical history.`;
+  const actions = [
+    primaryRecommendation,
+    "Document the lesion image and monitor for change over time.",
+    "Refer to dermatology if the lesion changes or symptoms worsen.",
+  ];
+
+  const analysisSummary = `The model classified the lesion as ${normalizedLabel} with ${Math.round(payload.confidence * 100)}% confidence and assessed the case as ${normalizedRiskLevel}.`;
+  const analysisPoints = [
+    `Primary prediction: ${normalizedLabel}`,
+    `Risk level: ${normalizedRiskLevel}`,
+    `Inference latency: ${Math.round(payload.inference_time_ms ?? 0)} ms`,
+    `Model used: ${payload.model_used}`,
   ];
 
   return {
@@ -97,81 +109,19 @@ function mapPredictionToResult(payload: PredictionApiResponse): Result {
     confidence: payload.confidence,
     urgency,
     urgencyLabel,
-    summary: payload.recommendation || `The model classified the lesion as ${normalizedLabel}.`,
+    summary: primaryRecommendation,
     hallmarks,
-    actions: fallbackActions,
+    actions,
     differentials: topDifferentials.length > 0 ? topDifferentials : [{ name: normalizedLabel, p: payload.confidence }],
+    modelUsed: payload.model_used,
+    riskLevel: normalizedRiskLevel,
+    inferenceTimeMs: payload.inference_time_ms,
+    createdAt: payload.created_at ?? null,
+    imageResolution: payload.image_resolution,
+    analysisSummary,
+    analysisPoints,
   };
 }
-
-const MOCK_RESULTS: Result[] = [
-  {
-    label: "Melanoma",
-    confidence: 0.92,
-    urgency: "critical",
-    urgencyLabel: "Critical · Refer 48h",
-    summary: "Features consistent with malignant melanoma detected.",
-    hallmarks: [
-      "Asymmetric border with irregular pigmentation",
-      "Diameter exceeding 6 mm with recent growth",
-      "Multiple color tones (brown, black, red)",
-    ],
-    actions: [
-      "Refer to dermatology within 48 hours",
-      "Order excisional biopsy for histopathology",
-      "Document lesion with calibrated dermoscopy",
-    ],
-    differentials: [
-      { name: "Melanoma", p: 0.92 },
-      { name: "Dysplastic nevus", p: 0.05 },
-      { name: "Seborrheic keratosis", p: 0.03 },
-    ],
-  },
-  {
-    label: "Actinic Keratosis",
-    confidence: 0.78,
-    urgency: "warning",
-    urgencyLabel: "Moderate · Follow-up 4w",
-    summary: "Pre-cancerous lesion likely. Monitoring required.",
-    hallmarks: [
-      "Rough, scaly patch on sun-exposed skin",
-      "Erythematous base with hyperkeratosis",
-      "Chronic UV exposure indicated",
-    ],
-    actions: [
-      "Schedule dermatology follow-up within 4 weeks",
-      "Consider cryotherapy or topical 5-FU",
-      "Counsel on broad-spectrum sun protection",
-    ],
-    differentials: [
-      { name: "Actinic Keratosis", p: 0.78 },
-      { name: "Squamous cell carcinoma", p: 0.14 },
-      { name: "Seborrheic keratosis", p: 0.08 },
-    ],
-  },
-  {
-    label: "Melanocytic Nevus",
-    confidence: 0.95,
-    urgency: "safe",
-    urgencyLabel: "Routine · Monitor",
-    summary: "No malignant features detected. Lesion appears benign.",
-    hallmarks: [
-      "Symmetric round shape with uniform color",
-      "Stable size under 6 mm",
-      "Smooth, well-defined border",
-    ],
-    actions: [
-      "Routine self-examination every 3 months",
-      "Re-image if any change in size or color",
-      "Annual skin check recommended",
-    ],
-    differentials: [
-      { name: "Melanocytic Nevus", p: 0.95 },
-      { name: "Dermatofibroma", p: 0.03 },
-      { name: "Lentigo", p: 0.02 },
-    ],
-  },
-];
 
 function Index() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
@@ -180,6 +130,9 @@ function Index() {
   const [preview, setPreview] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [modelName, setModelName] = useState<ModelName>("MobileNet");
+  const [comparison, setComparison] = useState<CompareResponse | null>(null);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -265,12 +218,13 @@ function Index() {
     setFile(f);
     setResult(null);
     setError(null);
+    setComparison(null);
     const url = URL.createObjectURL(f);
     setPreview(url);
     setLoading(true);
 
     try {
-      const payload = await predictImage(f);
+      const payload = await predictImage(f, modelName);
       setResult(mapPredictionToResult(payload));
       setProgress(100);
     } catch (err) {
@@ -280,7 +234,22 @@ function Index() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [modelName]);
+
+  const handleCompareModels = useCallback(async () => {
+    if (!file) return;
+    setComparisonLoading(true);
+    setError(null);
+    setComparison(null);
+    try {
+      const comparisonResult = await compareModels(file);
+      setComparison(comparisonResult);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Comparison request failed");
+    } finally {
+      setComparisonLoading(false);
+    }
+  }, [file]);
 
   const snapPhoto = useCallback(() => {
     const video = videoRef.current;
@@ -407,6 +376,24 @@ function Index() {
                   <div className="text-sm font-semibold text-slate-100">Patient Image Capture</div>
                   <div className="text-[11px] text-slate-500">JPG / PNG / DICOM · de-identified</div>
                 </div>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-slate-400">
+                  <span>Model</span>
+                  <select
+                    value={modelName}
+                    onChange={(e) => setModelName(e.target.value as ModelName)}
+                    className="rounded-2xl border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-white outline-none transition-colors hover:border-cyan/40"
+                  >
+                    <option value="MobileNet">MobileNet</option>
+                    <option value="VGG19">VGG19</option>
+                    <option value="InceptionV3">InceptionV3</option>
+                    <option value="Ensemble">Ensemble</option>
+                  </select>
+                </label>
+                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-400">
+                  {modelName}
+                </span>
               </div>
               {file && (
                 <button
@@ -609,7 +596,7 @@ function Index() {
                           />
                         </div>
                         <div className="mt-1.5 font-mono text-[10px] uppercase tracking-wider text-slate-400">
-                          {Math.round(progress).toString().padStart(2, "0")}% · ensemble of 4 CNNs · 142 ms/inference
+                          {Math.round(progress).toString().padStart(2, "0")}% · analyzing with {modelName}
                         </div>
                       </div>
                     </>
@@ -642,26 +629,33 @@ function Index() {
             <ConfidenceGauge result={result} loading={loading} />
           </div>
 
-          {/* Stats strip */}
-          <Card className="col-span-12 md:col-span-6 lg:col-span-4 animate-fade-up" style={{ animationDelay: "220ms" }}>
-            <div className="mb-4 flex items-center justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Model Telemetry</h4>
-              <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-green-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse-dot" /> Live
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Stat label="AUROC" value="0.946" trend="+0.02" />
-              <Stat label="Latency" value="142ms" trend="−18ms" />
-              <Stat label="Sensitivity" value="93.4%" trend="+1.1" />
-              <Stat label="Specificity" value="91.2%" trend="+0.4" />
-            </div>
-          </Card>
-
           {/* Prediction */}
           <div className="col-span-12 md:col-span-6 lg:col-span-4 animate-fade-up" style={{ animationDelay: "260ms" }}>
             <PredictionCard result={result} loading={loading} />
           </div>
+
+          {/* Analysis Summary */}
+          <Card className="col-span-12 md:col-span-6 lg:col-span-4 animate-fade-up" style={{ animationDelay: "280ms" }}>
+            <div className="mb-4 flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Analysis Summary</h4>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-cyan/70">Backend-driven</span>
+            </div>
+            {loading || !result ? (
+              <Skeleton lines={3} />
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm leading-relaxed text-slate-300">{result.analysisSummary}</p>
+                <div className="space-y-2 text-sm text-slate-400">
+                  {result.analysisPoints.map((point) => (
+                    <div key={point} className="flex items-start gap-3">
+                      <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan" />
+                      <span>{point}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
 
           {/* Differentials */}
           <Card className="col-span-12 md:col-span-6 lg:col-span-4 animate-fade-up" style={{ animationDelay: "300ms" }}>
@@ -742,39 +736,41 @@ function Index() {
                   ))}
                 </ol>
                 <div className="mt-5 flex flex-wrap gap-2">
-                  <button className="group inline-flex items-center gap-2 rounded-full bg-cyan px-5 py-2.5 font-display text-sm font-bold tracking-wide text-slate-950 transition-all hover:bg-cyan-soft hover:scale-[1.02]" style={{ boxShadow: "0 0 30px rgba(34,211,238,0.35)" }}>
-                    Generate Report
-                    <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                  </button>
-                  <button className="inline-flex items-center gap-2 rounded-full glass px-5 py-2.5 text-sm font-semibold text-slate-200 transition-colors hover:text-white">
-                    Refer Specialist
+                  <button
+                    onClick={() => void handleCompareModels()}
+                    disabled={!file || loading || comparisonLoading}
+                    className="inline-flex items-center gap-2 rounded-full glass px-5 py-2.5 text-sm font-semibold text-slate-200 transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Compare Models
                   </button>
                 </div>
+                {comparison && (
+                  <div className="mt-3 rounded-2xl border border-cyan/20 bg-cyan/5 p-4 text-sm text-slate-100">
+                    <div className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-400">Comparison Summary</div>
+                    <div className="grid gap-2 text-sm sm:grid-cols-2">
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                        <div className="text-slate-400">Majority</div>
+                        <div className="mt-1 font-semibold text-white">{comparison.summary.majority_prediction}</div>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                        <div className="text-slate-400">Fastest</div>
+                        <div className="mt-1 font-semibold text-white">{comparison.summary.fastest_model}</div>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                        <div className="text-slate-400">Highest Confidence</div>
+                        <div className="mt-1 font-semibold text-white">{comparison.summary.highest_confidence_model}</div>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                        <div className="text-slate-400">Agreement</div>
+                        <div className="mt-1 font-semibold text-white">{comparison.summary.agreement ? "Consensus" : "Divergence"}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </Card>
 
-          {/* Audit / signature */}
-          <Card className="col-span-12 lg:col-span-4 animate-fade-up" style={{ animationDelay: "420ms" }}>
-            <h4 className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Audit Trail</h4>
-            <div className="space-y-3 font-mono text-[11px] text-slate-400">
-              <Row k="Session" v="DRM-8842-X0" />
-              <Row k="Model" v="DermNet v3.2.1" />
-              <Row k="Region" v="us-east-1 · edge" />
-              <Row k="Signed" v="✓ Ed25519" />
-              <Row k="Timestamp" v="2026-06-17T12:00:00Z" />
-            </div>
-            <div className="mt-5 rounded-xl border border-cyan/15 bg-cyan/[0.04] p-3">
-              <p className="text-[11px] leading-relaxed text-slate-400">
-                Clinical decision support. Always correlate with patient history.
-              </p>
-            </div>
-          </Card>
-
-          {/* Find a Dermatologist */}
-          <div className="col-span-12 lg:col-span-8 animate-fade-up h-full" style={{ animationDelay: "480ms" }}>
-            <FindDermatologist />
-          </div>
         </div>
       </main>
     </div>
@@ -922,6 +918,7 @@ function ConfidenceGauge({ result, loading }: { result: Result | null; loading: 
   const r = 80;
   const c = 2 * Math.PI * r;
   const offset = c - (pct / 100) * c;
+  const latency = result?.inferenceTimeMs ?? 0;
 
   return (
     <Card className="h-full">
@@ -965,10 +962,10 @@ function ConfidenceGauge({ result, loading }: { result: Result | null; loading: 
       <div className="mt-2 space-y-2">
         <div className="flex justify-between text-xs">
           <span className="text-slate-400">Inference latency</span>
-          <span className="font-mono text-white">142ms</span>
+          <span className="font-mono text-white">{loading ? "—" : `${latency} ms`}</span>
         </div>
         <div className="h-1 w-full overflow-hidden rounded-full bg-white/5">
-          <div className="h-full w-[72%] bg-cyan" style={{ boxShadow: "0 0 8px rgba(34,211,238,0.6)" }} />
+          <div className="h-full bg-cyan" style={{ width: `${loading || !result ? 0 : pct}%`, boxShadow: "0 0 8px rgba(34,211,238,0.6)" }} />
         </div>
       </div>
     </Card>
@@ -997,155 +994,14 @@ function PredictionCard({ result, loading }: { result: Result | null; loading: b
               {URGENCY[result.urgency].label}
             </span>
             <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Dermoscopic
+              {result.riskLevel}
             </span>
             <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              ICD · L82
+              {result.imageResolution ?? result.modelUsed}
             </span>
           </div>
         </>
       )}
-    </Card>
-  );
-}
-
-function FindDermatologist() {
-  const search = useServerFn(findDermatologists);
-  const [address, setAddress] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<Dermatologist[] | null>(null);
-
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const value = address.trim();
-    if (!value || loading) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await search({ data: { address: value } });
-      setResults(res.results);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Search failed");
-      setResults(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Card className="relative overflow-hidden h-full">
-      <div className="pointer-events-none absolute -left-20 -top-20 h-56 w-56 rounded-full bg-cyan/10 blur-3xl" />
-      <div className="relative">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-cyan/70">
-              Specialist Network
-            </div>
-            <h3 className="mt-1 font-display text-2xl font-bold tracking-tight text-white">
-              Find a Dermatologist Near You
-            </h3>
-            <p className="mt-1 max-w-xl text-sm text-slate-400">
-              Enter your address or city to surface board-reviewed dermatology clinics in your area.
-            </p>
-          </div>
-          <div className="rounded-xl border border-cyan/20 bg-cyan/10 p-2 text-cyan">
-            <MapPin className="h-5 w-5" />
-          </div>
-        </div>
-
-        <form onSubmit={onSubmit} className="mt-5 flex flex-col gap-3 sm:flex-row">
-          <div className="relative flex-1">
-            <MapPin className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="e.g. 350 5th Ave, New York, NY"
-              maxLength={200}
-              className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 outline-none transition-colors focus:border-cyan/40 focus:bg-white/10"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading || !address.trim()}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan px-6 py-3 font-display text-sm font-bold tracking-wide text-slate-950 transition-all hover:scale-[1.02] hover:bg-cyan-soft disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
-            style={{ boxShadow: "0 0 30px rgba(34,211,238,0.35)" }}
-          >
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4" />
-            )}
-            {loading ? "Searching" : "Search"}
-          </button>
-        </form>
-
-        {error && (
-          <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-300">
-            {error}
-          </div>
-        )}
-
-        {results && results.length === 0 && !loading && (
-          <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-slate-400">
-            No dermatologists found near that location. Try a broader area.
-          </div>
-        )}
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          {[
-            "New York, NY",
-            "Los Angeles, CA",
-          ].map((example) => (
-            <button
-              key={example}
-              type="button"
-              onClick={() => {
-                setAddress(example);
-                setResults(null);
-                setError(null);
-              }}
-              className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-slate-400 transition-all hover:border-cyan/30 hover:text-cyan"
-            >
-              {example}
-            </button>
-          ))}
-        </div>
-
-        {results && results.length > 0 && (
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            {results.slice(0, 2).map((d) => (
-              <a
-                key={d.id}
-                href={d.mapsUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="group rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition-all hover:border-cyan/30 hover:bg-white/[0.06]"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <h4 className="truncate font-display text-base font-semibold text-white">
-                      {d.name}
-                    </h4>
-                    <p className="mt-1 line-clamp-2 text-xs text-slate-400">{d.address}</p>
-                  </div>
-                  <ArrowUpRight className="h-4 w-4 shrink-0 text-slate-500 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-cyan" />
-                </div>
-                {typeof d.rating === "number" && (
-                  <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-300">
-                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                    <span className="font-mono font-semibold tabular-nums">{d.rating.toFixed(1)}</span>
-                    {d.userRatingCount ? (
-                      <span className="text-slate-500">({d.userRatingCount.toLocaleString()})</span>
-                    ) : null}
-                  </div>
-                )}
-              </a>
-            ))}
-          </div>
-        )}
-      </div>
     </Card>
   );
 }

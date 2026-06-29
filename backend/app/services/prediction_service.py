@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import io
 import logging
 import uuid
 from collections import Counter
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
+from PIL import Image, ImageOps
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
@@ -25,7 +28,7 @@ class PredictionService:
         self.predictor = Predictor()
         self.gradcam_generator = GradCAMGenerator(output_dir=settings.heatmap_dir)
 
-    def predict(self, file: UploadFile, model_name: str, user_id: int | None = None) -> dict[str, Any]:
+    def predict(self, file: UploadFile, model_name: str, current_user: Any | None = None) -> dict[str, Any]:
         trace_id = uuid.uuid4().hex
         logger.info("[%s] prediction service started model=%s filename=%s", trace_id, model_name, getattr(file, "filename", None))
 
@@ -34,6 +37,11 @@ class PredictionService:
         if not contents:
             logger.warning("[%s] uploaded file is empty", trace_id)
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file uploaded")
+
+        image = Image.open(io.BytesIO(contents)).convert("RGB")
+        image = ImageOps.exif_transpose(image)
+        image_resolution = f"{image.width}x{image.height}"
+        timestamp = datetime.now(UTC).isoformat()
 
         file_ext = Path(file.filename or "image.jpg").suffix.lower().lstrip(".")
         logger.info("[%s] uploaded file extension=%s", trace_id, file_ext)
@@ -80,6 +88,9 @@ class PredictionService:
             gradcam_available = False
             gradcam_error = "Grad-CAM generation failed; prediction returned without explanation."
 
+        user_id = getattr(current_user, "id", None)
+        user_name = getattr(current_user, "full_name", None) or getattr(current_user, "email", None)
+
         payload = {
             "predicted_class": prediction_result["predicted_class"],
             "confidence": prediction_result["confidence"],
@@ -98,12 +109,23 @@ class PredictionService:
         except Exception:
             logger.exception("[%s] failed to persist prediction to the database", trace_id)
 
+        created_at = prediction.created_at.isoformat() if prediction is not None else timestamp
+        gradcam_url = f"/heatmaps/{Path(gradcam_path).name}" if gradcam_path else None
+
         response = {
             **prediction_result,
-            "gradcam_url": f"/api/gradcam/{prediction.id}" if prediction is not None else None,
+            "gradcam_url": gradcam_url,
             "prediction_id": str(prediction.id) if prediction is not None else None,
             "gradcam_available": gradcam_available,
             "gradcam_error": gradcam_error,
+            "created_at": created_at,
+            "image_resolution": image_resolution,
+            "image_filename": Path(file.filename or "image").name,
+            "status": "completed",
+            "backend_version": settings.app_version,
+            "api_version": "1.0",
+            "user_id": user_id,
+            "user_name": user_name,
         }
 
         logger.info("[%s] prediction service response prepared prediction_id=%s gradcam_available=%s", trace_id, response["prediction_id"], gradcam_available)
@@ -176,16 +198,23 @@ class PredictionService:
 
     def history(self, user_id: int) -> list[dict[str, Any]]:
         predictions = self.prediction_repository.list_for_user(user_id)
-        return [
-            {
-                "id": p.id,
-                "predicted_class": p.predicted_class,
-                "confidence": p.confidence,
-                "risk_level": p.risk_level,
-                "recommendation": p.recommendation,
-                "model_used": p.model_used,
-                "created_at": p.created_at.isoformat(),
-                "gradcam_url": f"/api/gradcam/{p.id}",
-            }
-            for p in predictions
-        ]
+        history: list[dict[str, Any]] = []
+
+        for p in predictions:
+            gradcam_url = None
+            if p.gradcam_image_path:
+                gradcam_url = f"/heatmaps/{Path(p.gradcam_image_path).name}"
+            history.append(
+                {
+                    "id": p.id,
+                    "predicted_class": p.predicted_class,
+                    "confidence": p.confidence,
+                    "risk_level": p.risk_level,
+                    "recommendation": p.recommendation,
+                    "model_used": p.model_used,
+                    "created_at": p.created_at.isoformat(),
+                    "gradcam_url": gradcam_url,
+                }
+            )
+
+        return history

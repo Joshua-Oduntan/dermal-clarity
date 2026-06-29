@@ -16,15 +16,17 @@ class ImagePreprocessor:
             "MobileNet": (200, 200),
             "VGG19": (200, 200),
             "InceptionV3": (200, 200),
+            "Ensemble": (200, 200),
         }
 
     def preprocess(self, image_bytes: bytes, model_name: str) -> np.ndarray:
-        if model_name not in self.target_sizes:
+        processed_name = model_name if model_name in self.target_sizes else "MobileNet"
+        if processed_name not in self.target_sizes:
             raise ValueError(f"Unsupported model for preprocessing: {model_name}")
 
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         image = ImageOps.exif_transpose(image)
-        image = image.resize(self.target_sizes[model_name], resample=Image.Resampling.BILINEAR)
+        image = image.resize(self.target_sizes[processed_name], resample=Image.Resampling.BILINEAR)
 
         array = np.asarray(image, dtype=np.float32)
         array = np.expand_dims(array, axis=0)

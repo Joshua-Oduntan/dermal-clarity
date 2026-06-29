@@ -44,10 +44,11 @@ class GradCAMGenerator:
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         image = ImageOps.exif_transpose(image)
 
-        model = self.model_loader.get_model(model_name)
+        gradcam_model_name = model_name if model_name != "Ensemble" else "MobileNet"
+        model = self.model_loader.get_model(gradcam_model_name)
         target_layer = self._find_target_layer(model)
         if target_layer is None:
-            logger.warning("Grad-CAM target layer not found for model %s", model_name)
+            logger.warning("Grad-CAM target layer not found for model %s", gradcam_model_name)
             return {
                 "heatmap_path": None,
                 "overlay_path": None,
@@ -56,10 +57,10 @@ class GradCAMGenerator:
             }
 
         try:
-            input_tensor = self.preprocessor.preprocess(image_bytes, model_name)
+            input_tensor = self.preprocessor.preprocess(image_bytes, gradcam_model_name)
             heatmap, predicted_index = self._build_gradcam(model, input_tensor, target_layer)
         except Exception:
-            logger.exception("Failed to build Grad-CAM for model %s", model_name)
+            logger.exception("Failed to build Grad-CAM for model %s", gradcam_model_name)
             return {
                 "heatmap_path": None,
                 "overlay_path": None,
@@ -116,21 +117,16 @@ class GradCAMGenerator:
         if parent_model is None or parent_model is model:
             return target_layer.output
 
-        nested = parent_model
         try:
-            nested_model = tf.keras.models.Model(inputs=nested.inputs, outputs=target_layer.output)
-        except Exception as exc:
-            raise RuntimeError(f"Unable to build connected Grad-CAM tensor for layer {target_layer.name}") from exc
-
-        if len(model.inputs) == len(nested.inputs):
-            if len(model.inputs) == 1:
+            nested_model = tf.keras.models.Model(inputs=parent_model.inputs, outputs=target_layer.output)
+            if len(model.inputs) == len(nested_model.inputs):
+                return nested_model(model.inputs[0] if len(model.inputs) == 1 else model.inputs)
+            if len(nested_model.inputs) == 1 and len(model.inputs) >= 1:
                 return nested_model(model.inputs[0])
-            return nested_model(model.inputs)
-
-        if len(nested.inputs) == 1 and len(model.inputs) >= 1:
-            return nested_model(model.inputs[0])
-
-        return nested_model(nested.inputs)
+            return nested_model(nested_model.inputs)
+        except Exception:
+            logger.warning("Unable to build connected Grad-CAM tensor for layer %s using nested model, falling back on direct layer output", target_layer.name)
+            return target_layer.output
 
     def _find_parent_model(self, model: Any, target_layer: Any) -> Any | None:
         if hasattr(model, "layers"):

@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class PredictionRequest(BaseModel):
-    model_name: str = Field(default="MobileNet", pattern="^(MobileNet|VGG19|InceptionV3)$")
+    model_name: str = Field(default="MobileNet", pattern="^(MobileNet|VGG19|InceptionV3|Ensemble)$")
 
 
 class PredictionResponse(BaseModel):
@@ -18,6 +18,16 @@ class PredictionResponse(BaseModel):
     inference_time_ms: float
     gradcam_url: str | None = None
     prediction_id: str | None = None
+    gradcam_available: bool = False
+    gradcam_error: str | None = None
+    created_at: str | None = None
+    image_resolution: str | None = None
+    image_filename: str | None = None
+    status: str | None = None
+    backend_version: str | None = None
+    api_version: str | None = None
+    user_id: int | None = None
+    user_name: str | None = None
 
 
 class GradCAMResponse(BaseModel):
